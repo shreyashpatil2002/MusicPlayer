@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.1/css/all.min.css"
+        integrity="sha512-MV7K8+y+gLIBoVD59lQIYicR65iaqukzvf/nwasF0nqhPay5w/9lJmVM2hMDcnK1OnMGCdVK+iQrJ7lzPJQd1w=="
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <title>Music Player - Atif Aslam</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            transition: all .3s;
+        }
+
+        body {
+            width: 100%;
+            height: 100vh;
+            background: #000;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-image: url(images/bg3.gif);
+        }
+
+        .container {
+            width: 40%;
+            padding: 15px;
+            background: #202020fa;
+            border-radius: 20px;
+        }
+
+        .container ul {
+            list-style: none;
+            text-align: center;
+        }
+
+        .image {
+            width: 95%;
+            height: auto;
+            padding: 14px;
+            background-image: linear-gradient(90deg, rgb(221 95 205), rgb(203 43 43));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 0 0 20px 20px;
+        }
+
+        .image img {
+            width: 170px;
+            border-radius: 20px;
+        }
+
+        ul li {
+            margin: 15px 0;
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            border-radius: 20px;
+            cursor: pointer;
+        }
+
+        .container li:hover {
+            background: #313233fa;
+        }
+
+        audio {
+            width: 95%;
+        }
+
+        .song {
+            width: 100%;
+        }
+
+        #name {
+            text-align: left;
+            width: 60%;
+        }
+
+        .btn {
+            width: 40%;
+        }
+
+        .btn button:first-child {
+            margin-right: 15px;
+        }
+
+        .btn button {
+            padding: 5px 9px;
+            outline: none;
+            border: none;
+            background: transparent;
+            color: #fff;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .btn button a {
+            color: #fff;
+        }
+
+        @media screen and (width < 400px) {
+            body {
+                display: block;
+                background-size: cover;
+                background-position: center;
+                background-repeat: no-repeat;
+            }
+
+            .container {
+                width: 100%;
+                height: 100vh;
+                padding: 0;
+                padding-top: 20px;
+                background: #2020209c;
+            }
+
+            .container ul li span img {
+                margin: 0 28px 0 24px;
+            }
+
+            .image {
+                width: 93%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1 align="center">Atif Aslam</h1><br>
+        <hr>
+        <div class="image">
+            <p><img src="images/atif.jpg"></p>
+        </div>
+        <ul>
+            <li>
+                <div class="song">
+                    <div id="name">
+                        <audio src="music/Atif.mp3" loop></audio>
+                        <h5>Tera Hone Laga Hoon | Ajab Prem Ki Ghazab Kahani</h5>
+                    </div>
+                </div>
+                <div class="btn">
+                    <button onclick="playMusic(0)"><i class="fa fa-play" aria-hidden="true"></i></button>
+                    <button><a href="music/Atif.mp3" download><i class="fa fa-download"
+                                aria-hidden="true"></i></a></button>
+
+                </div>
+            </li>
+            <li>
+                <div class="song">
+                    <div id="name">
+                        <audio src="music/Atif2.mp3" loop></audio>
+                        <h5> Pehli Dafa Song | Atif Aslam</h5>
+                    </div>
+                </div>
+                <div class="btn">
+                    <button onclick="playMusic(1)"><i class="fa fa-play" aria-hidden="true"></i></button>
+                    <button><a href="music/Atif2.mp3" download><i class="fa fa-download"
+                                aria-hidden="true"></i></a></button>
+                </div>
+            </li>
+            <li>
+                <div class="song">
+                    <div id="name">
+                        <audio src="music/Atif3.mp3" loop></audio>
+                        <h5>Dil Diyan Gallan Song | Tiger Zinda Hai</h5>
+                    </div>
+                </div>
+                <div class="btn">
+                    <button onclick="playMusic(2)"><i class="fa fa-play" aria-hidden="true"></i></button>
+                    <button><a href="music/Atif3.mp3" download><i class="fa fa-download"
+                                aria-hidden="true"></i></a></button>
+                </div>
+            </li>
+        </ul>
+    </div>
+    <script src="script.js"></script>
+</body>
+
+</html>
