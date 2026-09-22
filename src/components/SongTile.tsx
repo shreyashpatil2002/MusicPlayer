@@ -10,6 +10,7 @@ import { Song } from '../types';
 import { Colors } from '../theme/colors';
 import { formatDuration } from '../utils/helpers';
 import ArtworkCard from './ArtworkCard';
+import { usePlayer } from '../context/PlayerContext';
 
 interface Props {
   song: Song;
@@ -19,9 +20,10 @@ interface Props {
 }
 
 export default function SongTile({ song, isActive, isPlaying, onPress }: Props) {
+  const player = usePlayer();
+
   return (
     <TouchableOpacity style={styles.container} onPress={onPress} activeOpacity={0.7}>
-      {/* Artwork */}
       <View style={styles.artContainer}>
         <ArtworkCard song={song} size={52} borderRadius={10} />
         {isActive && (
@@ -35,7 +37,6 @@ export default function SongTile({ song, isActive, isPlaying, onPress }: Props) 
         )}
       </View>
 
-      {/* Text */}
       <View style={styles.info}>
         <Text
           style={[styles.title, isActive && styles.titleActive]}
@@ -48,8 +49,22 @@ export default function SongTile({ song, isActive, isPlaying, onPress }: Props) 
         </Text>
       </View>
 
-      {/* Duration */}
-      <Text style={styles.duration}>{formatDuration(song.duration)}</Text>
+      <View style={styles.rightMeta}>
+        <TouchableOpacity
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          onPress={(e) => {
+            e.stopPropagation();
+            player.toggleLikeSong(song.id);
+          }}
+        >
+          <Ionicons
+            name={player.isSongLiked(song.id) ? 'heart' : 'heart-outline'}
+            color={Colors.accent}
+            size={18}
+          />
+        </TouchableOpacity>
+        <Text style={styles.duration}>{formatDuration(song.duration)}</Text>
+      </View>
     </TouchableOpacity>
   );
 }
@@ -88,6 +103,11 @@ const styles = StyleSheet.create({
     color: Colors.onSurfaceDim,
     fontSize: 12,
     marginTop: 2,
+  },
+  rightMeta: {
+    alignItems: 'flex-end',
+    gap: 6,
+    minWidth: 46,
   },
   duration: {
     color: Colors.onSurfaceDim,

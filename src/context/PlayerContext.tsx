@@ -3,11 +3,12 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from 'react';
 import { Audio, AVPlaybackStatus } from 'expo-av';
-import { Song, RepeatMode } from '../types';
+import { Playlist, Song, RepeatMode } from '../types';
 import { DEMO_SONGS } from '../data/demoSongs';
 
 interface PlayerContextValue {
@@ -29,6 +30,11 @@ interface PlayerContextValue {
   shuffle: boolean;
   repeatMode: RepeatMode;
 
+  // Listener library state
+  likedSongIds: string[];
+  recentlyPlayedIds: string[];
+  playlists: Playlist[];
+
   // Actions
   playSong: (song: Song) => Promise<void>;
   togglePlayPause: () => Promise<void>;
@@ -37,9 +43,19 @@ interface PlayerContextValue {
   skipToPrevious: () => Promise<void>;
   toggleShuffle: () => void;
   cycleRepeatMode: () => void;
+
+  // Library actions
+  toggleLikeSong: (songId: string) => void;
+  isSongLiked: (songId: string) => boolean;
+  createPlaylist: (name: string) => void;
+  addSongToPlaylist: (playlistId: string, songId: string) => void;
+  removeSongFromPlaylist: (playlistId: string, songId: string) => void;
+  searchSongs: (query: string) => Song[];
 }
 
 const PlayerContext = createContext<PlayerContextValue | null>(null);
+
+const RECENTLY_PLAYED_LIMIT = 25;
 
 export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const soundRef = useRef<Audio.Sound | null>(null);
@@ -54,16 +70,35 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const [shuffle, setShuffle] = useState(false);
   const [repeatMode, setRepeatMode] = useState<RepeatMode>('off');
 
+  const [likedSongIds, setLikedSongIds] = useState<string[]>([]);
+  const [recentlyPlayedIds, setRecentlyPlayedIds] = useState<string[]>([]);
+  const [playlists, setPlaylists] = useState<Playlist[]>([
+    {
+      id: 'playlist-favorites',
+      name: 'Favorites',
+      description: 'Your saved tracks',
+      trackIds: [],
+    },
+  ]);
+
   // Keep refs for latest values accessible inside callbacks without stale closure
   const shuffleRef = useRef(shuffle);
   const repeatRef = useRef(repeatMode);
   const currentIndexRef = useRef(currentIndex);
   const songsRef = useRef(songs);
 
-  useEffect(() => { shuffleRef.current = shuffle; }, [shuffle]);
-  useEffect(() => { repeatRef.current = repeatMode; }, [repeatMode]);
-  useEffect(() => { currentIndexRef.current = currentIndex; }, [currentIndex]);
-  useEffect(() => { songsRef.current = songs; }, [songs]);
+  useEffect(() => {
+    shuffleRef.current = shuffle;
+  }, [shuffle]);
+  useEffect(() => {
+    repeatRef.current = repeatMode;
+  }, [repeatMode]);
+  useEffect(() => {
+    currentIndexRef.current = currentIndex;
+  }, [currentIndex]);
+  useEffect(() => {
+    songsRef.current = songs;
+  }, [songs]);
 
   // Configure audio mode once on mount
   useEffect(() => {
@@ -74,6 +109,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     return () => {
       soundRef.current?.unloadAsync().catch(() => {});
     };
+  }, []);
+
+  const rememberRecentlyPlayed = useCallback((songId: string) => {
+    setRecentlyPlayedIds((prev) => {
+      const deduped = prev.filter((id) => id !== songId);
+      return [songId, ...deduped].slice(0, RECENTLY_PLAYED_LIMIT);
+    });
   }, []);
 
   const onPlaybackStatusUpdate = useCallback(
@@ -111,18 +153,17 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       setDurationMs(0);
 
       try {
-        // Unload previous sound
         if (soundRef.current) {
           await soundRef.current.unloadAsync();
           soundRef.current = null;
         }
 
         setCurrentIndex(index);
+        rememberRecentlyPlayed(song.id);
 
-        // Demo songs have empty URIs – just set state without actual playback
         if (!song.uri) {
           setIsLoading(false);
-          setIsPlaying(true); // visual only for demo
+          setIsPlaying(true);
           setDurationMs(song.duration);
           return;
         }
@@ -134,12 +175,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         );
         soundRef.current = sound;
       } catch {
-        // Silently fall through – demo songs won't have real audio
+        // Demo data can fail to load if no stream URL is configured.
       } finally {
         setIsLoading(false);
       }
     },
-    [onPlaybackStatusUpdate]
+    [onPlaybackStatusUpdate, rememberRecentlyPlayed]
   );
 
   const playSong = useCallback(
@@ -152,7 +193,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
   const togglePlayPause = useCallback(async () => {
     if (!soundRef.current) {
-      // Demo mode – just toggle visual state
       setIsPlaying((p) => !p);
       return;
     }
@@ -181,7 +221,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }, [shuffle, _loadAndPlay]);
 
   const skipToPrevious = useCallback(async () => {
-    // Restart track if more than 3 seconds in
     if (positionMs > 3000 && soundRef.current) {
       await soundRef.current.setPositionAsync(0);
       setPositionMs(0);
@@ -206,29 +245,144 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  const value: PlayerContextValue = {
-    songs,
-    isLoading,
-    currentSong: currentIndex >= 0 ? songs[currentIndex] : null,
-    currentIndex,
-    isPlaying,
-    positionMs,
-    durationMs,
-    isBuffering,
-    shuffle,
-    repeatMode,
-    playSong,
-    togglePlayPause,
-    seekTo,
-    skipToNext,
-    skipToPrevious,
-    toggleShuffle,
-    cycleRepeatMode,
-  };
+  const toggleLikeSong = useCallback((songId: string) => {
+    setLikedSongIds((prev) =>
+      prev.includes(songId) ? prev.filter((id) => id !== songId) : [songId, ...prev]
+    );
 
-  return (
-    <PlayerContext.Provider value={value}>{children}</PlayerContext.Provider>
+    setPlaylists((prev) =>
+      prev.map((playlist) => {
+        if (playlist.id !== 'playlist-favorites') return playlist;
+        const alreadyAdded = playlist.trackIds.includes(songId);
+        return {
+          ...playlist,
+          trackIds: alreadyAdded
+            ? playlist.trackIds.filter((id) => id !== songId)
+            : [songId, ...playlist.trackIds],
+        };
+      })
+    );
+  }, []);
+
+  const isSongLiked = useCallback(
+    (songId: string) => likedSongIds.includes(songId),
+    [likedSongIds]
   );
+
+  const createPlaylist = useCallback((name: string) => {
+    const cleanName = name.trim();
+    if (!cleanName) return;
+
+    setPlaylists((prev) => {
+      const duplicateName = prev.some(
+        (playlist) => playlist.name.toLowerCase() === cleanName.toLowerCase()
+      );
+      if (duplicateName) return prev;
+
+      return [
+        ...prev,
+        {
+          id: `playlist-${Date.now()}`,
+          name: cleanName,
+          trackIds: [],
+        },
+      ];
+    });
+  }, []);
+
+  const addSongToPlaylist = useCallback((playlistId: string, songId: string) => {
+    setPlaylists((prev) =>
+      prev.map((playlist) => {
+        if (playlist.id !== playlistId || playlist.trackIds.includes(songId)) {
+          return playlist;
+        }
+        return { ...playlist, trackIds: [...playlist.trackIds, songId] };
+      })
+    );
+  }, []);
+
+  const removeSongFromPlaylist = useCallback((playlistId: string, songId: string) => {
+    setPlaylists((prev) =>
+      prev.map((playlist) =>
+        playlist.id === playlistId
+          ? { ...playlist, trackIds: playlist.trackIds.filter((id) => id !== songId) }
+          : playlist
+      )
+    );
+  }, []);
+
+  const searchSongs = useCallback(
+    (query: string) => {
+      const normalizedQuery = query.trim().toLowerCase();
+      if (!normalizedQuery) return songs;
+
+      return songs.filter((song) => {
+        const haystack = `${song.title} ${song.artist} ${song.album} ${song.genre ?? ''}`.toLowerCase();
+        return haystack.includes(normalizedQuery);
+      });
+    },
+    [songs]
+  );
+
+  const value: PlayerContextValue = useMemo(
+    () => ({
+      songs,
+      isLoading,
+      currentSong: currentIndex >= 0 ? songs[currentIndex] : null,
+      currentIndex,
+      isPlaying,
+      positionMs,
+      durationMs,
+      isBuffering,
+      shuffle,
+      repeatMode,
+      likedSongIds,
+      recentlyPlayedIds,
+      playlists,
+      playSong,
+      togglePlayPause,
+      seekTo,
+      skipToNext,
+      skipToPrevious,
+      toggleShuffle,
+      cycleRepeatMode,
+      toggleLikeSong,
+      isSongLiked,
+      createPlaylist,
+      addSongToPlaylist,
+      removeSongFromPlaylist,
+      searchSongs,
+    }),
+    [
+      songs,
+      isLoading,
+      currentIndex,
+      isPlaying,
+      positionMs,
+      durationMs,
+      isBuffering,
+      shuffle,
+      repeatMode,
+      likedSongIds,
+      recentlyPlayedIds,
+      playlists,
+      playSong,
+      togglePlayPause,
+      seekTo,
+      skipToNext,
+      skipToPrevious,
+      toggleShuffle,
+      cycleRepeatMode,
+      toggleLikeSong,
+      isSongLiked,
+      createPlaylist,
+      addSongToPlaylist,
+      removeSongFromPlaylist,
+      searchSongs,
+    ]
+  );
+
+  return <PlayerContext.Provider value={value}>{children}</PlayerContext.Provider>;
 }
 
 export function usePlayer(): PlayerContextValue {

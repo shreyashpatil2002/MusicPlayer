@@ -19,7 +19,6 @@ import ArtworkCard from '../components/ArtworkCard';
 import ProgressBar from '../components/ProgressBar';
 import { Colors, gradientForSeed } from '../theme/colors';
 import { formatDuration } from '../utils/helpers';
-import { RepeatMode } from '../types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const ARTWORK_SIZE = Math.min(SCREEN_WIDTH - 64, 320);
@@ -68,8 +67,12 @@ export default function PlayerScreen() {
               {song?.artist ?? '—'}
             </Text>
           </View>
-          <TouchableOpacity>
-            <Ionicons name="heart-outline" size={26} color={Colors.accent} />
+          <TouchableOpacity onPress={() => song && player.toggleLikeSong(song.id)}>
+            <Ionicons
+              name={song && player.isSongLiked(song.id) ? 'heart' : 'heart-outline'}
+              size={26}
+              color={Colors.accent}
+            />
           </TouchableOpacity>
         </View>
 
